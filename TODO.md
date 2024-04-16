@@ -1,0 +1,3 @@
+- can vote
+- cannot exceed spentContributions
+- can distribute if above threshold
