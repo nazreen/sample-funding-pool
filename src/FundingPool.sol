@@ -13,7 +13,7 @@ contract FundingPool {
     bool public distributed = false;
 
     function vote(uint256 numToCast) public {
-        // TODO: check if
+        // TODO: check that numToCast <= contributions[msg.sender]
         // TODO: error if contributions = spentContributions
     }
 
