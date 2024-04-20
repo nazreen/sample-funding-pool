@@ -7,7 +7,9 @@ import {FundingPool} from "../src/FundingPool.sol";
 
 
 contract FundingPoolTest is Test {
-    address user1 = address(1);
+    address user1 = address(1); // only votes
+    address user2 = address(2); // only receives
+    address outsiderUser = address(3);
 
     FundingPool public fundingPool;
 
@@ -27,7 +29,7 @@ contract FundingPoolTest is Test {
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) =payable(address(fundingPool)).call{value: sendAmount}("");
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
         require(ok, "ether transfer failed");
         assertEq(
             fundingPool.contributions(user1),
@@ -35,4 +37,33 @@ contract FundingPoolTest is Test {
             "Ether received does not match the sent amount"
         );
     }
+
+    function test_VotesCasted() public {
+        //
+        uint256 sendAmount = 1 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertGe(fundingPool.contributions(user1), 0);
+        //
+
+        //
+        uint256 numToCast = sendAmount / 2;
+        vm.prank(user1);
+        fundingPool.vote(user2, numToCast);
+        assertEq(fundingPool.votesReceived(user2), numToCast);
+        assertEq(fundingPool.spentContributions(user1), numToCast);
+        //
+    }
+
+    // user with 0 can't vote
+
+    // can't vote with more than contributions
+
+    // can't vote with more than contributions - spentContributions
+
+    // can't contribute more than 10 ether per address
+
+    // can't vote more than 10 ether per address
 }
