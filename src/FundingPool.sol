@@ -4,6 +4,7 @@ pragma solidity ^0.8.21;
 // NOTE: This contract is not yet complete.
 
 error NoZeroValue();
+error InsufficientUnspentContributions();
 
 contract FundingPool {
     event VoteCasted(address indexed voter, uint256 indexed numCasted);
@@ -15,6 +16,12 @@ contract FundingPool {
     bool public distributed = false;
 
     function vote(address voteRecipient, uint256 numToCast) public {
+        // check has sufficient contributions
+        uint256 unspentContributions = contributions[msg.sender] - spentContributions[msg.sender];
+        if (unspentContributions < numToCast) {
+            revert InsufficientUnspentContributions();
+        }
+
         votesReceived[voteRecipient] += numToCast;
         spentContributions[msg.sender] += numToCast;
         emit VoteCasted(voteRecipient, numToCast);

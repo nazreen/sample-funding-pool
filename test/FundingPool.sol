@@ -58,6 +58,12 @@ contract FundingPoolTest is Test {
     }
 
     // user with 0 can't vote
+    function test_CantVoteIfNoContributions() public {
+        assertEq(fundingPool.contributions(outsiderUser), 0);
+        vm.prank(outsiderUser);
+        vm.expectRevert();
+        fundingPool.vote(user2, 500);
+    }
 
     // can't vote with more than contributions
 
