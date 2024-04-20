@@ -80,6 +80,23 @@ contract FundingPoolTest is Test {
     }
 
     // can't vote with more than contributions - spentContributions
+    function test_CantVoteIfExceedingUnspentContributions() public {
+        uint256 sendAmount = 1 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+
+        uint256 numToCast = 0.7 ether;
+        vm.prank(user1);
+        fundingPool.vote(user2, numToCast);
+
+        uint256 numToCast2 = 0.5 ether;
+        require((numToCast + numToCast2) > sendAmount, "Both amounts should exceed sendAmount for this test");
+        vm.prank(user1);
+        vm.expectRevert();
+        fundingPool.vote(user2, numToCast2);
+    }
 
     // can't contribute more than 10 ether per address
 
