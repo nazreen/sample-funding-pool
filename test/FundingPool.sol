@@ -66,6 +66,18 @@ contract FundingPoolTest is Test {
     }
 
     // can't vote with more than contributions
+    function test_CantVoteIfExceedingContributions() public {
+        uint256 sendAmount = 1 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+
+        uint256 numToCast = 2 ether;
+        vm.prank(user1);
+        vm.expectRevert();
+        fundingPool.vote(user2, numToCast);
+    }
 
     // can't vote with more than contributions - spentContributions
 
