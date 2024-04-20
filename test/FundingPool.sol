@@ -109,4 +109,15 @@ contract FundingPoolTest is Test {
     }
 
     // can't vote more than 10 ether per address
+    function testFuzz_CantExceed10Ether(uint256 x) public {
+        vm.assume(x >= 10 ether);
+        vm.deal(user1, x);
+        vm.prank(user1);
+        // TODO: remove the .call(), set the contributions value for user 1 to 11 ether (then this wont be a fuzz test), or maybe just make a diff test
+        // as this test should be the fuzz test to ensure that users cant send mroe than 10 ether ever
+        vm.expectRevert();
+        (bool ok, ) = payable(address(fundingPool)).call{value: x}("");
+        require(ok, "ether transfer failed");
+        require(fundingPool.contributions(user1) <= 10 ether, "Exceeded 10 ether");
+    }
 }
