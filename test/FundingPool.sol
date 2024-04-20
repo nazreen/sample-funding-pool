@@ -99,6 +99,14 @@ contract FundingPoolTest is Test {
     }
 
     // can't contribute more than 10 ether per address
+    function test_CantContributeMoreThan10Ether() public {
+        uint256 sendAmount = 11 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        vm.expectRevert();
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+    }
 
     // can't vote more than 10 ether per address
 }

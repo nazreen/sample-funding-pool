@@ -5,6 +5,7 @@ pragma solidity ^0.8.21;
 
 error NoZeroValue();
 error InsufficientUnspentContributions();
+error ExceededThreshold(uint256 amount);
 
 contract FundingPool {
     event VoteCasted(address indexed voter, uint256 indexed numCasted);
@@ -36,6 +37,8 @@ contract FundingPool {
 
     // note: we should also have a function that performs the same function as receive
     receive () payable external {
+        if ( msg.value > threshold ) revert ExceededThreshold(msg.value);
+
         if ( msg.value == 0 ) revert NoZeroValue();
         contributions[msg.sender] += msg.value;
     }
