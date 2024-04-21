@@ -5,6 +5,8 @@ pragma solidity ^0.8.21;
 
 error NoZeroValue();
 error InsufficientUnspentContributions();
+error ThresholdNotMet();
+error alreadyDistributed();
 
 contract FundingPool {
     event VoteCasted(address indexed voter, uint256 indexed numCasted);
@@ -27,8 +29,15 @@ contract FundingPool {
         emit VoteCasted(voteRecipient, numToCast);
     }
 
-    function distribute() public {
+    function distribute(address to) public {
         // TODO: error if threshold not met
+        if (distributed) {
+            revert alreadyDistributed();
+        }
+        if (votesReceived[to] < threshold) {
+            revert ThresholdNotMet();
+        }
+        // threshold met
         distributed = true;
     }
 

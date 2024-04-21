@@ -98,4 +98,38 @@ contract FundingPoolTest is Test {
         fundingPool.vote(user2, numToCast2);
     }
 
+    // cant distribute if threshold not met
+    function test_CantDistributeIfThresholdNotMet() public {
+        uint256 sendAmount = 1 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertEq(fundingPool.contributions(user1), sendAmount);
+        vm.prank(user1);
+        vm.expectRevert();
+        fundingPool.distribute(user2);
+    }
+
+    // cant distribute if already distributed
+    function test_CantDistributeIfAlreadyDistributed() public {
+        uint256 sendAmount = 10 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertEq(fundingPool.contributions(user1), sendAmount);
+        vm.prank(user1);
+        fundingPool.vote(user2, sendAmount);
+        vm.prank(user1);
+        fundingPool.distribute(user2);
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok2, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok2, "ether transfer failed");
+        vm.prank(user1);
+        vm.expectRevert();
+        fundingPool.distribute(user2);
+    }
+
 }
