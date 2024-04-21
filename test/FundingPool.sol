@@ -132,4 +132,19 @@ contract FundingPoolTest is Test {
         fundingPool.distribute(user2);
     }
 
+    // sends ether balance to user
+    function test_Distribute() public {
+        uint256 sendAmount = 10 ether;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertEq(fundingPool.contributions(user1), sendAmount);
+        vm.prank(user1);
+        fundingPool.vote(user2, sendAmount);
+        vm.prank(user1);
+        fundingPool.distribute(user2);
+        assertEq(user2.balance, sendAmount);
+    }
+
 }

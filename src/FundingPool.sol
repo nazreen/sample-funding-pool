@@ -10,6 +10,7 @@ error alreadyDistributed();
 
 contract FundingPool {
     event VoteCasted(address indexed voter, uint256 indexed numCasted);
+    event Distribution(address indexed to, uint256 indexed amount);
 
     mapping(address => uint256) public votesReceived; // address to distribute to
     mapping(address => uint256) public contributions;
@@ -39,6 +40,11 @@ contract FundingPool {
         }
         // threshold met
         distributed = true;
+        uint256 amount = address(this).balance;        
+        (bool ok, ) = payable(address(to)).call{value: amount}("");
+        require(ok, "ether transfer failed");
+        // send funds
+        emit Distribution(to, amount);
     }
 
     // note: we should also have a function that performs the same function as receive
