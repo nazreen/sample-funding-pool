@@ -31,7 +31,6 @@ contract FundingPool {
     }
 
     function distribute(address to) public {
-        // TODO: error if threshold not met
         if (distributed) {
             revert alreadyDistributed();
         }
@@ -41,9 +40,9 @@ contract FundingPool {
         // threshold met
         distributed = true;
         uint256 amount = address(this).balance;        
+        // send funds
         (bool ok, ) = payable(address(to)).call{value: amount}("");
         require(ok, "ether transfer failed");
-        // send funds
         emit Distribution(to, amount);
     }
 
