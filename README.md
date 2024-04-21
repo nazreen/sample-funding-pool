@@ -12,3 +12,6 @@ Requirements:
 - the recipient is chosen via voting
 - only contributors can vote
 - voting weights are proportionate to contributions made to the pool
+
+Note:
+- this contract's design makes it a one use contract

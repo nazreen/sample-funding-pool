@@ -1,0 +1,1 @@
+- make contract not one use (create pot concept). this means there should not be a generic receive function
