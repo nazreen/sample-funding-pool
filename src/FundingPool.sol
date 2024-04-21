@@ -52,7 +52,6 @@ contract FundingPool {
         contributions[msg.sender] += msg.value;
     }
 
-    // note: we should also have a function that performs the same function as receive
     receive () payable external {
         _contribute();
     }
