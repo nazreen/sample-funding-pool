@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: UNLICENSED
 pragma solidity ^0.8.21;
 
-// NOTE: This contract is not yet complete.
+// NOTE: This contract should not be used for Production as it is for educational purposes only. You may contact me if you'd like to have a version for Production.
 
 error NoZeroValue();
 error InsufficientUnspentContributions();
@@ -47,9 +47,13 @@ contract FundingPool {
         emit Distribution(to, amount);
     }
 
-    // note: we should also have a function that performs the same function as receive
-    receive () payable external {
+    function _contribute() internal {
         if ( msg.value == 0 ) revert NoZeroValue();
         contributions[msg.sender] += msg.value;
+    }
+
+    // note: we should also have a function that performs the same function as receive
+    receive () payable external {
+        _contribute();
     }
 }
