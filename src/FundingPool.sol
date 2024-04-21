@@ -25,8 +25,6 @@ contract FundingPool {
         votesReceived[voteRecipient] += numToCast;
         spentContributions[msg.sender] += numToCast;
         emit VoteCasted(voteRecipient, numToCast);
-        // TODO: check that numToCast <= contributions[msg.sender]
-        // TODO: error if contributions = spentContributions
     }
 
     function distribute() public {
