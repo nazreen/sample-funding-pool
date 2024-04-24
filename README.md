@@ -11,11 +11,16 @@ Requirements:
 - funds are distributed to a single recipient
 - the recipient is chosen via voting
 - only contributors can vote
+- only owner can distribute
 - voting weights are proportionate to contributions made to the pool
+
+Assumptions
+- the contract owner can be trusted to only call distribute() after doing due dilligence on the to-be recipient
 
 Note:
 - this contract's design makes it a one use contract
+- ownership is not transferrable in the current implementation
 
 Security Considerations
-- this contract allows an attacker to steal the whole balance of the funding pool just by supplying the difference between the threshold and the current contract's balance. one way to mitigate against this is to allow only the contract owner to call the distribute() function, under the assumption that the contract owner would do due dilligence on the to address.
-- this contract allows for an attacker to steal the whole balance of the funding pool even if there is another address that has a higher number of votes. e.g. address a has 20 ether of votes. an attacker could simply contribute 10 ether to his own address, and then call distribute to that address, netting him the 20 ether voted to the original address + his 10 ether back + the remainder balance in the contract.
+- there is a reliance on the contract owner to validate the `to` address for `distribute()`
+- this contract allows the contract owner to call `distribute()` for any address that has more than the threshold amount of votes
