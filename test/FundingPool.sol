@@ -4,17 +4,38 @@ pragma solidity ^0.8.13;
 import {Test, console} from "forge-std/Test.sol";
 import "forge-std/console.sol";
 import {FundingPool} from "../src/FundingPool.sol";
+import {stdStorage, StdStorage} from "forge-std/Test.sol";              
+
 
 
 contract FundingPoolTest is Test {
+    using stdStorage for StdStorage;
+
     address user1 = address(1); // only votes
     address user2 = address(2); // only receives
     address outsiderUser = address(3);
+    address deployer;
 
     FundingPool public fundingPool;
 
     function setUp() public {
         fundingPool = new FundingPool();
+        deployer = msg.sender;
+    }
+
+    function bypassThreshold(address voteRecipient) internal {
+        stdstore
+            .target(address(fundingPool))
+            .sig("votesReceived(address)")
+            .with_key(voteRecipient)
+            .checked_write(fundingPool.threshold());
+    }
+
+    function bypassOwner(address newOwner) internal {
+        stdstore
+            .target(address(fundingPool))
+            .sig("owner()")
+            .checked_write(newOwner);
     }
 
     // function testFuzz_Contribute(uint256 x) public {
@@ -98,8 +119,36 @@ contract FundingPoolTest is Test {
         fundingPool.vote(user2, numToCast2);
     }
 
+    // TODO: figure out how to get the deployer address in this particular test
+    // function test_recordsOwner() public {
+    //     stdstore
+    //         .target(address(fundingPool))
+    //         .sig("owner()")
+    //         .checked_write(deployer);
+    //     assertEq(fundingPool.owner(), msg.sender);
+    // }
+
+    function test_notOwnerCannotDistribute() public {
+        bypassThreshold(user2);
+        assertNotEq(fundingPool.owner(), user1);
+        vm.prank(user1);
+        vm.expectRevert();
+        fundingPool.distribute(user2);
+    }
+    
+    function test_ownerCanDistribute() public {
+        // mock the owner address
+        bypassOwner(deployer);
+        assertEq(fundingPool.owner(), deployer);
+        // mock storage to surpass threshold
+        bypassThreshold(user2);
+        vm.prank(deployer);
+        fundingPool.distribute(user2);
+    }
+
     // cant distribute if threshold not met
     function test_CantDistributeIfThresholdNotMet() public {
+        bypassOwner(user1);
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
@@ -113,6 +162,7 @@ contract FundingPoolTest is Test {
 
     // cant distribute if already distributed
     function test_CantDistributeIfAlreadyDistributed() public {
+        bypassOwner(user1);
         uint256 sendAmount = 10 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
@@ -134,6 +184,7 @@ contract FundingPoolTest is Test {
 
     // sends ether balance to user
     function test_Distribute() public {
+        bypassOwner(user1);
         uint256 sendAmount = 10 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);

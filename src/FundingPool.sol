@@ -6,17 +6,25 @@ pragma solidity ^0.8.21;
 error NoZeroValue();
 error InsufficientUnspentContributions();
 error ThresholdNotMet();
-error alreadyDistributed();
+error AlreadyDistributed();
+error Unauthorized();
 
 contract FundingPool {
     event VoteCasted(address indexed voter, uint256 indexed numCasted);
     event Distribution(address indexed to, uint256 indexed amount);
 
+    address public owner;
+
     mapping(address => uint256) public votesReceived; // address to distribute to
     mapping(address => uint256) public contributions;
     mapping(address => uint256) public spentContributions;
+
     uint256 public threshold = 10 ether;
     bool public distributed = false;
+
+    constructor() {
+        owner = msg.sender;
+    }
 
     function vote(address voteRecipient, uint256 numToCast) public {
         // check has sufficient contributions
@@ -31,8 +39,11 @@ contract FundingPool {
     }
 
     function distribute(address to) public {
+        if (msg.sender != owner) {
+            revert Unauthorized();
+        }
         if (distributed) {
-            revert alreadyDistributed();
+            revert AlreadyDistributed();
         }
         if (votesReceived[to] < threshold) {
             revert ThresholdNotMet();
