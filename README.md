@@ -20,7 +20,8 @@ Assumptions
 Note:
 - this contract's design makes it a one use contract
 - ownership is not transferrable in the current implementation
+- `transfer` and `send` will not work since the receive() function requires more than 2300 gas as it calls `_contribute`
 
 Security Considerations
-- there is a reliance on the contract owner to validate the `to` address for `distribute()`
+- there is a reliance on the contract owner to validate the `to` address for `distribute()` (that it has the highest number of votes and is a legitimate candidate)
 - this contract allows the contract owner to call `distribute()` for any address that has more than the threshold amount of votes

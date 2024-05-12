@@ -38,13 +38,16 @@ contract FundingPoolTest is Test {
             .checked_write(newOwner);
     }
 
-    // function testFuzz_Contribute(uint256 x) public {
-    //     uint256 sendAmount = x;
-    //     address sender = address(1); // In this test, the sender is the test contract itself
-    //     vm.prank(address(1));
-    //     payable(address(fundingPool)).transfer(sendAmount);
-    //     assertEq(fundingPool.contributions(sender), x);
-    // }
+    function testFuzz_Contribute(uint256 x) public {
+        vm.assume(x > 0);
+        uint256 sendAmount = x;
+        address sender = address(1);
+        vm.deal(sender, sendAmount);
+        vm.prank(sender);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertEq(fundingPool.contributions(sender), x);
+    }
 
     function test_RecordsContributions() public {
         uint256 sendAmount = 1 ether;
