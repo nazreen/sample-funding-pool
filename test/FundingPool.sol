@@ -49,6 +49,17 @@ contract FundingPoolTest is Test {
         assertEq(fundingPool.contributions(sender), x);
     }
 
+    function testFuzz_ContributeLargeAmounts(uint256 x) public {
+        vm.assume(x > 100 ether);
+        uint256 sendAmount = x;
+        address sender = address(1);
+        vm.deal(sender, sendAmount);
+        vm.prank(sender);
+        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
+        require(ok, "ether transfer failed");
+        assertEq(fundingPool.contributions(sender), x);
+    }
+
     function test_RecordsContributions() public {
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
