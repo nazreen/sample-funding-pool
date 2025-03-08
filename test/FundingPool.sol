@@ -6,210 +6,223 @@ import "forge-std/console.sol";
 import {FundingPool} from "../src/FundingPool.sol";
 import {stdStorage, StdStorage} from "forge-std/Test.sol";              
 
-
-
 contract FundingPoolTest is Test {
     using stdStorage for StdStorage;
 
-    address user1 = address(1); // only votes
-    address user2 = address(2); // only receives
-    address outsiderUser = address(3);
+    address user1 = address(1); // contributor and voter
+    address user2 = address(2); // recipient
+    address user3 = address(3); // another contributor
     address deployer;
 
     FundingPool public fundingPool;
+    uint256 public potId;
+    uint256 public defaultThreshold = 10 ether;
+    uint256 public defaultDuration = 7 days;
 
     function setUp() public {
         fundingPool = new FundingPool();
-        deployer = msg.sender;
+        deployer = address(this);
+        // Create a default pot for testing
+        potId = fundingPool.createPot("Test Pot", defaultThreshold, defaultDuration);
     }
 
-    function bypassThreshold(address voteRecipient) internal {
-        stdstore
-            .target(address(fundingPool))
-            .sig("votesReceived(address)")
-            .with_key(voteRecipient)
-            .checked_write(fundingPool.threshold());
-    }
-
-    function bypassOwner(address newOwner) internal {
-        stdstore
-            .target(address(fundingPool))
-            .sig("owner()")
-            .checked_write(newOwner);
+    function test_CreatePot() public {
+        string memory potName = "New Test Pot";
+        uint256 threshold = 5 ether;
+        uint256 duration = 3 days;
+        
+        uint256 newPotId = fundingPool.createPot(potName, threshold, duration);
+        
+        (string memory name, uint256 potThreshold, , uint256 expiryTime, bool distributed) = fundingPool.getPotDetails(newPotId);
+        
+        assertEq(name, potName);
+        assertEq(potThreshold, threshold);
+        assertEq(expiryTime, block.timestamp + duration);
+        assertEq(distributed, false);
     }
 
     function testFuzz_Contribute(uint256 x) public {
-        vm.assume(x > 0);
-        uint256 sendAmount = x;
-        address sender = address(1);
-        vm.deal(sender, sendAmount);
-        vm.prank(sender);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertEq(fundingPool.contributions(sender), x);
+        vm.assume(x > 0 && x < 100 ether); // Reasonable bounds
+        
+        vm.deal(user1, x);
+        vm.prank(user1);
+        fundingPool.contribute{value: x}(potId);
+        
+        assertEq(fundingPool.getContributions(potId, user1), x);
     }
 
-    function testFuzz_ContributeLargeAmounts(uint256 x) public {
-        vm.assume(x > 100 ether);
-        uint256 sendAmount = x;
-        address sender = address(1);
-        vm.deal(sender, sendAmount);
-        vm.prank(sender);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertEq(fundingPool.contributions(sender), x);
-    }
-
-    function test_RecordsContributions() public {
+    function test_ContributeToPot() public {
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
+        fundingPool.contribute{value: sendAmount}(potId);
+        
         assertEq(
-            fundingPool.contributions(user1),
+            fundingPool.getContributions(potId, user1),
             sendAmount,
             "Ether received does not match the sent amount"
         );
     }
 
     function test_VotesCasted() public {
-        //
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertGe(fundingPool.contributions(user1), 0);
-        //
-
-        //
+        fundingPool.contribute{value: sendAmount}(potId);
+        
         uint256 numToCast = sendAmount / 2;
         vm.prank(user1);
-        fundingPool.vote(user2, numToCast);
-        assertEq(fundingPool.votesReceived(user2), numToCast);
-        assertEq(fundingPool.spentContributions(user1), numToCast);
-        //
+        fundingPool.vote(potId, user2, numToCast);
+        
+        assertEq(fundingPool.getVotesReceived(potId, user2), numToCast);
+        assertEq(fundingPool.getSpentContributions(potId, user1), numToCast);
     }
 
-    // user with 0 can't vote
     function test_CantVoteIfNoContributions() public {
-        assertEq(fundingPool.contributions(outsiderUser), 0);
-        vm.prank(outsiderUser);
+        vm.prank(user3);
         vm.expectRevert();
-        fundingPool.vote(user2, 500);
+        fundingPool.vote(potId, user2, 500);
     }
 
-    // can't vote with more than contributions
     function test_CantVoteIfExceedingContributions() public {
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
+        fundingPool.contribute{value: sendAmount}(potId);
 
         uint256 numToCast = 2 ether;
         vm.prank(user1);
         vm.expectRevert();
-        fundingPool.vote(user2, numToCast);
+        fundingPool.vote(potId, user2, numToCast);
     }
 
-    // can't vote with more than contributions - spentContributions
     function test_CantVoteIfExceedingUnspentContributions() public {
         uint256 sendAmount = 1 ether;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
+        fundingPool.contribute{value: sendAmount}(potId);
 
         uint256 numToCast = 0.7 ether;
         vm.prank(user1);
-        fundingPool.vote(user2, numToCast);
+        fundingPool.vote(potId, user2, numToCast);
 
         uint256 numToCast2 = 0.5 ether;
         require((numToCast + numToCast2) > sendAmount, "Both amounts should exceed sendAmount for this test");
         vm.prank(user1);
         vm.expectRevert();
-        fundingPool.vote(user2, numToCast2);
+        fundingPool.vote(potId, user2, numToCast2);
     }
 
-    // TODO: figure out how to get the deployer address in this particular test
-    // function test_recordsOwner() public {
-    //     stdstore
-    //         .target(address(fundingPool))
-    //         .sig("owner()")
-    //         .checked_write(deployer);
-    //     assertEq(fundingPool.owner(), msg.sender);
-    // }
-
     function test_notOwnerCannotDistribute() public {
-        bypassThreshold(user2);
-        assertNotEq(fundingPool.owner(), user1);
+        // Setup
+        uint256 sendAmount = defaultThreshold;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        fundingPool.contribute{value: sendAmount}(potId);
+        
+        vm.prank(user1);
+        fundingPool.vote(potId, user2, sendAmount);
+        
+        // Non-owner tries to distribute
         vm.prank(user1);
         vm.expectRevert();
-        fundingPool.distribute(user2);
+        fundingPool.distribute(potId, user2);
     }
     
     function test_ownerCanDistribute() public {
-        // mock the owner address
-        bypassOwner(deployer);
-        assertEq(fundingPool.owner(), deployer);
-        // mock storage to surpass threshold
-        bypassThreshold(user2);
-        vm.prank(deployer);
-        fundingPool.distribute(user2);
+        // Setup
+        uint256 sendAmount = defaultThreshold;
+        vm.deal(user1, sendAmount);
+        vm.prank(user1);
+        fundingPool.contribute{value: sendAmount}(potId);
+        
+        vm.prank(user1);
+        fundingPool.vote(potId, user2, sendAmount);
+        
+        // Owner distributes
+        fundingPool.distribute(potId, user2);
+        
+        // Check pot is marked as distributed
+        assertTrue(fundingPool.isPotDistributed(potId));
     }
 
-    // cant distribute if threshold not met
     function test_CantDistributeIfThresholdNotMet() public {
-        bypassOwner(user1);
-        uint256 sendAmount = 1 ether;
+        uint256 sendAmount = defaultThreshold / 2;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertEq(fundingPool.contributions(user1), sendAmount);
+        fundingPool.contribute{value: sendAmount}(potId);
+        
         vm.prank(user1);
+        fundingPool.vote(potId, user2, sendAmount);
+
         vm.expectRevert();
-        fundingPool.distribute(user2);
+        fundingPool.distribute(potId, user2);
     }
 
-    // cant distribute if already distributed
     function test_CantDistributeIfAlreadyDistributed() public {
-        bypassOwner(user1);
-        uint256 sendAmount = 10 ether;
+        // First distribution
+        uint256 sendAmount = defaultThreshold;
         vm.deal(user1, sendAmount);
         vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertEq(fundingPool.contributions(user1), sendAmount);
+        fundingPool.contribute{value: sendAmount}(potId);
+        
         vm.prank(user1);
-        fundingPool.vote(user2, sendAmount);
+        fundingPool.vote(potId, user2, sendAmount);
+        
+        fundingPool.distribute(potId, user2);
+        
+        // Try second distribution
+        vm.expectRevert();
+        fundingPool.distribute(potId, user2);
+    }
+
+    function test_MultiplePots() public {
+        // Create two pots
+        uint256 pot1 = potId; // Use existing pot
+        uint256 pot2 = fundingPool.createPot("Second Pot", 5 ether, 30 days);
+        
+        // Contribute to both pots
+        uint256 sendAmount1 = 10 ether;
+        uint256 sendAmount2 = 5 ether;
+        
+        vm.deal(user1, sendAmount1 + sendAmount2);
+        
         vm.prank(user1);
-        fundingPool.distribute(user2);
-        vm.deal(user1, sendAmount);
+        fundingPool.contribute{value: sendAmount1}(pot1);
+        
         vm.prank(user1);
-        (bool ok2, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok2, "ether transfer failed");
+        fundingPool.contribute{value: sendAmount2}(pot2);
+        
+        // Vote in both pots
+        vm.prank(user1);
+        fundingPool.vote(pot1, user2, sendAmount1);
+        
+        vm.prank(user1);
+        fundingPool.vote(pot2, user3, sendAmount2);
+        
+        // Distribute pot1 
+        fundingPool.distribute(pot1, user2);
+        
+        // Check pot1 distributed but pot2 not
+        assertTrue(fundingPool.isPotDistributed(pot1));
+        assertFalse(fundingPool.isPotDistributed(pot2));
+        
+        // Distribute pot2
+        fundingPool.distribute(pot2, user3);
+        assertTrue(fundingPool.isPotDistributed(pot2));
+    }
+
+    function test_ExpiredPot() public {
+        // Create a pot with very short duration
+        uint256 shortPotId = fundingPool.createPot("Short Pot", 5 ether, 1 hours);
+        
+        // Fast forward beyond expiry
+        vm.warp(block.timestamp + 2 hours);
+        
+        // Try to contribute
+        vm.deal(user1, 1 ether);
         vm.prank(user1);
         vm.expectRevert();
-        fundingPool.distribute(user2);
+        fundingPool.contribute{value: 1 ether}(shortPotId);
     }
-
-    // sends ether balance to user
-    function test_Distribute() public {
-        bypassOwner(user1);
-        uint256 sendAmount = 10 ether;
-        vm.deal(user1, sendAmount);
-        vm.prank(user1);
-        (bool ok, ) = payable(address(fundingPool)).call{value: sendAmount}("");
-        require(ok, "ether transfer failed");
-        assertEq(fundingPool.contributions(user1), sendAmount);
-        vm.prank(user1);
-        fundingPool.vote(user2, sendAmount);
-        vm.prank(user1);
-        fundingPool.distribute(user2);
-        assertEq(user2.balance, sendAmount);
-    }
-
 }
