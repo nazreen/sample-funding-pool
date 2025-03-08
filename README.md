@@ -85,7 +85,7 @@ RPC_URL=your_rpc_url
 2. Deploy to a network:
 ```bash
 source .env
-forge script script/FundingPool.sol:FundingPoolScript --rpc-url $RPC_URL --private-key $PRIVATE_KEY --broadcast
+forge script script/FundingPool.sol:FundingPoolScript --rpc-url https://optimism-sepolia.gateway.tenderly.co --account default --sender <SENDER_ADDRESS> --broadcast
 ```
 
 ### Contract Interaction
